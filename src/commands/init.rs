@@ -89,7 +89,9 @@ fn install_hooks_with_bin(path: &Path, bin: &str) -> Result<(), String> {
         let arr = hooks_obj
             .entry(hook_type)
             .or_insert_with(|| serde_json::json!([]));
-        let arr = arr.as_array_mut().ok_or(format!("{hook_type} is not an array"))?;
+        let arr = arr
+            .as_array_mut()
+            .ok_or(format!("{hook_type} is not an array"))?;
 
         let full_cmd = format!("{bin} {cmd}");
         if !has_hook_command(arr, &full_cmd) {
@@ -157,8 +159,11 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("settings.json");
         // Old installation — has "ccs hook stop" but not "ccs hook ask"
-        fs::write(&path, r#"{"hooks":{"Stop":[{"hooks":[{"command":"ccs hook stop"}]}]}}"#)
-            .unwrap();
+        fs::write(
+            &path,
+            r#"{"hooks":{"Stop":[{"hooks":[{"command":"ccs hook stop"}]}]}}"#,
+        )
+        .unwrap();
 
         assert!(!hooks_installed(&path));
     }
@@ -220,14 +225,18 @@ mod tests {
         // Stop should have 2 entries: original + CCS
         let stop = parsed["hooks"]["Stop"].as_array().unwrap();
         assert_eq!(stop.len(), 2);
-        assert!(stop[0]["hooks"][0]["command"]
-            .as_str()
-            .unwrap()
-            .contains("afplay"));
-        assert!(stop[1]["hooks"][0]["command"]
-            .as_str()
-            .unwrap()
-            .contains("ccs hook stop"));
+        assert!(
+            stop[0]["hooks"][0]["command"]
+                .as_str()
+                .unwrap()
+                .contains("afplay")
+        );
+        assert!(
+            stop[1]["hooks"][0]["command"]
+                .as_str()
+                .unwrap()
+                .contains("ccs hook stop")
+        );
     }
 
     #[test]

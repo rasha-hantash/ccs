@@ -107,10 +107,7 @@ impl Widget for SidebarWidget<'_> {
                         Style::default().fg(Color::White),
                     )
                 } else {
-                    (
-                        Span::raw(" "),
-                        Style::default().fg(colors::OVERLAY),
-                    )
+                    (Span::raw(" "), Style::default().fg(colors::OVERLAY))
                 };
 
                 let mut spans = vec![

@@ -138,8 +138,7 @@ impl StateDetector {
         let mut states = HashMap::new();
 
         // Get foreground commands + pane IDs for all panes in one tmux call
-        let pane_infos: Vec<tmux::PaneInfo> =
-            tmux::list_pane_commands().unwrap_or_default();
+        let pane_infos: Vec<tmux::PaneInfo> = tmux::list_pane_commands().unwrap_or_default();
         let pane_cmds: HashMap<u32, &str> = pane_infos
             .iter()
             .map(|p| (p.window_index, p.command.as_str()))
@@ -153,10 +152,7 @@ impl StateDetector {
         let events = load_latest_events(&events_dir());
 
         for win in windows {
-            let cmd = pane_cmds
-                .get(&win.index)
-                .copied()
-                .unwrap_or("zsh");
+            let cmd = pane_cmds.get(&win.index).copied().unwrap_or("zsh");
 
             // Shell prompt means Claude exited
             if cmd == "zsh" || cmd == "bash" || cmd == "fish" {
@@ -166,9 +162,7 @@ impl StateDetector {
 
             // Match event by pane_id — each tmux pane has a unique ID like "%0"
             let win_pane_id = pane_ids.get(&win.index).copied().unwrap_or("");
-            let matched = events
-                .iter()
-                .find(|(pane_id, _)| pane_id == win_pane_id);
+            let matched = events.iter().find(|(pane_id, _)| pane_id == win_pane_id);
 
             let state = match matched {
                 Some((_, state_str)) => state_from_str(state_str),
@@ -232,11 +226,23 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
 
         let mut f1 = fs::File::create(dir.path().join("session-a.jsonl")).unwrap();
-        writeln!(f1, r#"{{"state":"working","cwd":"/project-a","pane_id":"%0","ts":1000}}"#).unwrap();
-        writeln!(f1, r#"{{"state":"idle","cwd":"/project-a","pane_id":"%0","ts":1001}}"#).unwrap();
+        writeln!(
+            f1,
+            r#"{{"state":"working","cwd":"/project-a","pane_id":"%0","ts":1000}}"#
+        )
+        .unwrap();
+        writeln!(
+            f1,
+            r#"{{"state":"idle","cwd":"/project-a","pane_id":"%0","ts":1001}}"#
+        )
+        .unwrap();
 
         let mut f2 = fs::File::create(dir.path().join("session-b.jsonl")).unwrap();
-        writeln!(f2, r#"{{"state":"asking","cwd":"/project-b","pane_id":"%3","ts":2000}}"#).unwrap();
+        writeln!(
+            f2,
+            r#"{{"state":"asking","cwd":"/project-b","pane_id":"%3","ts":2000}}"#
+        )
+        .unwrap();
 
         let events = load_latest_events(dir.path());
         assert_eq!(events.len(), 2);
@@ -254,10 +260,18 @@ mod tests {
 
         // Two sessions in the same cwd but different panes
         let mut f1 = fs::File::create(dir.path().join("session-a.jsonl")).unwrap();
-        writeln!(f1, r#"{{"state":"working","cwd":"/same/dir","pane_id":"%0","ts":1000}}"#).unwrap();
+        writeln!(
+            f1,
+            r#"{{"state":"working","cwd":"/same/dir","pane_id":"%0","ts":1000}}"#
+        )
+        .unwrap();
 
         let mut f2 = fs::File::create(dir.path().join("session-b.jsonl")).unwrap();
-        writeln!(f2, r#"{{"state":"idle","cwd":"/same/dir","pane_id":"%3","ts":1000}}"#).unwrap();
+        writeln!(
+            f2,
+            r#"{{"state":"idle","cwd":"/same/dir","pane_id":"%3","ts":1000}}"#
+        )
+        .unwrap();
 
         let events = load_latest_events(dir.path());
         assert_eq!(events.len(), 2);
