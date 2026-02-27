@@ -61,7 +61,7 @@ fn run_loop() -> Result<(), String> {
 
     loop {
         // Refresh window list periodically
-        if app.tick.is_multiple_of(REFRESH_EVERY) {
+        if app.tick % REFRESH_EVERY == 0 {
             refresh_windows(&mut app);
         }
 
