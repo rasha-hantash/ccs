@@ -11,14 +11,26 @@ fn main() {
     let cli = Cli::parse();
 
     let result = match cli.command {
-        Command::Start { name, dir } => commands::start::run(&name, dir.as_deref()),
-        Command::List => commands::list::run(),
-        Command::Kill { name } => commands::kill::run(&name),
-        Command::AllKill => commands::kill::run_all(),
-        Command::Resume => commands::resume::run(),
-        Command::Sidebar => sidebar::app::run(),
-        Command::Hook { event } => commands::hook::run(event),
-        Command::Init => commands::init::run(),
+        Some(Command::List) => commands::list::run(),
+        Some(Command::Kill { name }) => commands::kill::run(&name),
+        Some(Command::AllKill) => commands::kill::run_all(),
+        Some(Command::Resume) => commands::resume::run(),
+        Some(Command::Sidebar) => sidebar::app::run(),
+        Some(Command::Hook { event }) => commands::hook::run(event),
+        Some(Command::Init) => commands::init::run(),
+        None => {
+            // Default behavior: start a session or resume
+            match cli.name {
+                Some(name) => commands::start::run(&name, cli.dir.as_deref()),
+                None => {
+                    if tmux::has_session() {
+                        commands::resume::run()
+                    } else {
+                        commands::start::run("session", Some("."))
+                    }
+                }
+            }
+        }
     };
 
     if let Err(e) = result {

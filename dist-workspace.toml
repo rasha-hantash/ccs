@@ -10,10 +10,10 @@ ci = "github"
 # The installers to generate for each app
 installers = ["shell", "homebrew"]
 # Target platforms to build apps for (Rust target-triple syntax)
-# No Windows — CCS depends on tmux
+# No Windows — Cove depends on tmux
 targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-gnu"]
 # Homebrew tap repo
 [dist.github-custom-runners]
 
 [dist.homebrew-config]
-tap = "rasha-hantash/homebrew-ccs"
+tap = "rasha-hantash/homebrew-cove"

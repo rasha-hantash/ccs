@@ -32,7 +32,7 @@ fn tmux_stdout(args: &[&str]) -> Result<String, String> {
 
 // ── Public API ──
 
-pub const SESSION: &str = "ccs";
+pub const SESSION: &str = "cove";
 
 pub fn has_session() -> bool {
     tmux_ok(&["has-session", "-t", SESSION])

@@ -1,4 +1,4 @@
-# ccs — Claude Code Session Manager
+# cove — Claude Code Session Manager
 
 Manage multiple [Claude Code](https://docs.anthropic.com/en/docs/claude-code) sessions in tmux with a ratatui-powered sidebar navigator and real-time status detection.
 
@@ -19,26 +19,26 @@ Manage multiple [Claude Code](https://docs.anthropic.com/en/docs/claude-code) se
 ### Homebrew
 
 ```sh
-brew tap rasha-hantash/ccs && brew install ccs-cli
+brew tap rasha-hantash/cove && brew install cove-cli
 ```
 
 ### curl (macOS / Linux)
 
 ```sh
-curl --proto '=https' --tlsv1.2 -LsSf https://github.com/rasha-hantash/ccs/releases/latest/download/ccs-cli-installer.sh | sh
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/rasha-hantash/cove/releases/latest/download/cove-cli-installer.sh | sh
 ```
 
 ### cargo install
 
 ```sh
-cargo install ccs-cli
+cargo install cove-cli
 ```
 
 ### From source
 
 ```sh
-git clone https://github.com/rasha-hantash/ccs.git
-cd ccs
+git clone https://github.com/rasha-hantash/cove.git
+cd cove
 cargo install --path .
 ```
 
@@ -46,53 +46,53 @@ cargo install --path .
 
 ```sh
 # Install Claude Code hooks (one-time setup)
-ccs init
+cove init
 
 # Start a new session
-ccs start my-project ~/code/my-project
+cove my-project ~/code/my-project
 
 # Start another session
-ccs start api-work ~/code/api
+cove api-work ~/code/api
 
 # List active sessions
-ccs list
+cove list
 
 # Reattach to an existing session group
-ccs resume
+cove resume
 
 # Kill a session
-ccs kill my-project
+cove kill my-project
 
 # Kill all sessions
-ccs all-kill
+cove all-kill
 ```
 
 ## Commands
 
-| Command                  | Description                                            |
-| ------------------------ | ------------------------------------------------------ |
-| `ccs start [name] [dir]` | Start a new session (default name: `session-1`)        |
-| `ccs list` / `ccs ls`    | List active sessions with status and working directory |
-| `ccs kill <name>`        | Kill a single session                                  |
-| `ccs all-kill`           | Kill all sessions                                      |
-| `ccs resume`             | Reattach to an existing session group                  |
-| `ccs init`               | Install Claude Code hooks for status detection         |
-| `ccs sidebar`            | Launch the interactive navigator (called by `start`)   |
-| `ccs hook <event>`       | Handle hook events (called by hooks, not directly)     |
+| Command                 | Description                                            |
+| ----------------------- | ------------------------------------------------------ |
+| `cove [name] [dir]`     | Start a new session (or resume if no args)             |
+| `cove list` / `cove ls` | List active sessions with status and working directory |
+| `cove kill <name>`      | Kill a single session                                  |
+| `cove all-kill`         | Kill all sessions                                      |
+| `cove resume`           | Reattach to an existing session group                  |
+| `cove init`             | Install Claude Code hooks for status detection         |
+| `cove sidebar`          | Launch the interactive navigator (called internally)   |
+| `cove hook <event>`     | Handle hook events (called by hooks, not directly)     |
 
 ## How It Works
 
-CCS creates a tmux session group with one window per Claude Code session. Each window has three panes:
+Cove creates a tmux session group with one window per Claude Code session. Each window has three panes:
 
 1. **Claude pane** — runs `claude` CLI
 2. **Sidebar pane** — ratatui TUI showing all sessions with live status
 3. **Terminal pane** — mini shell in the session's working directory
 
-Status detection works through Claude Code's hook system. `ccs init` installs hooks into `~/.claude/settings.json` that fire `ccs hook` on key events. These write JSONL event files to `~/.ccs/events/`, which the sidebar reads to determine each session's state (working, waiting for input, idle).
+Status detection works through Claude Code's hook system. `cove init` installs hooks into `~/.claude/settings.json` that fire `cove hook` on key events. These write JSONL event files to `~/.cove/events/`, which the sidebar reads to determine each session's state (working, waiting for input, idle).
 
 ## Configuration
 
-Run `ccs init` to install the required hooks. This adds entries to your `~/.claude/settings.json`:
+Run `cove init` to install the required hooks. This adds entries to your `~/.claude/settings.json`:
 
 - `UserPromptSubmit` — detects when Claude starts working
 - `Stop` — detects when Claude finishes

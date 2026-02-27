@@ -3,7 +3,7 @@ use crate::tmux;
 
 pub fn run(name: &str) -> Result<(), String> {
     if !tmux::has_session() {
-        println!("{ANSI_OVERLAY}No active ccs session.{ANSI_RESET}");
+        println!("{ANSI_OVERLAY}No active cove session.{ANSI_RESET}");
         return Err(String::new());
     }
 
@@ -14,7 +14,7 @@ pub fn run(name: &str) -> Result<(), String> {
 
 pub fn run_all() -> Result<(), String> {
     if !tmux::has_session() {
-        println!("{ANSI_OVERLAY}No active ccs session.{ANSI_RESET}");
+        println!("{ANSI_OVERLAY}No active cove session.{ANSI_RESET}");
         return Err(String::new());
     }
 

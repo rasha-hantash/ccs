@@ -16,7 +16,7 @@ fn resolve_sidebar_bin() -> String {
     }
     // Fallback to the expected install location
     let home = std::env::var("HOME").unwrap_or_default();
-    format!("{home}/.local/bin/ccs")
+    format!("{home}/.local/bin/cove")
 }
 
 fn settings_path() -> PathBuf {
@@ -32,12 +32,12 @@ fn check_hooks() {
     }
 
     println!(
-        "CCS needs Claude Code hooks to show session status (Working/Idle/Asking).\n\
+        "Cove needs Claude Code hooks to show session status (Working/Idle/Asking).\n\
          This adds two async hooks to ~/.claude/settings.json:\n\
          {ANSI_PEACH}  UserPromptSubmit{ANSI_RESET}  detects when you send a message\n\
          {ANSI_PEACH}  Stop{ANSI_RESET}              detects when Claude finishes responding\n"
     );
-    print!("Add CCS hooks? [Y/n] ");
+    print!("Add Cove hooks? [Y/n] ");
     let _ = io::stdout().flush();
 
     let mut input = String::new();
@@ -52,7 +52,7 @@ fn check_hooks() {
             Err(e) => eprintln!("Failed to install hooks: {e}\n"),
         }
     } else {
-        println!("Skipped. Run `ccs init` later to enable status indicators.\n");
+        println!("Skipped. Run `cove init` later to enable status indicators.\n");
     }
 }
 
@@ -91,8 +91,8 @@ pub fn run(name: &str, dir: Option<&str>) -> Result<(), String> {
         // No session — create from scratch. Must run outside tmux for proper dimensions.
         if tmux::is_inside_tmux() {
             return Err(format!(
-                "No ccs session exists. Run from outside tmux first:\n  \
-                 {ANSI_PEACH}ccs start{ANSI_RESET} {name} {dir}"
+                "No cove session exists. Run from outside tmux first:\n  \
+                 {ANSI_PEACH}cove{ANSI_RESET} {name} {dir}"
             ));
         }
 

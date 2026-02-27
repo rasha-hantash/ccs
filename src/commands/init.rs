@@ -1,7 +1,7 @@
 // ── Hook installation for Claude Code ──
 //
-// Adds CCS hook entries to ~/.claude/settings.json so Claude Code
-// calls `ccs hook user-prompt` and `ccs hook stop` on session events.
+// Adds Cove hook entries to ~/.claude/settings.json so Claude Code
+// calls `cove hook user-prompt` and `cove hook stop` on session events.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -15,30 +15,30 @@ fn settings_path() -> PathBuf {
     PathBuf::from(home).join(".claude").join("settings.json")
 }
 
-fn ccs_bin_path() -> String {
+fn cove_bin_path() -> String {
     if let Ok(exe) = std::env::current_exe() {
         if let Ok(canonical) = fs::canonicalize(exe) {
             return canonical.to_string_lossy().to_string();
         }
     }
     let home = std::env::var("HOME").unwrap_or_default();
-    format!("{home}/.local/bin/ccs")
+    format!("{home}/.local/bin/cove")
 }
 
-/// Check if CCS hooks are already installed in settings.json.
+/// Check if Cove hooks are already installed in settings.json.
 /// Checks for the PreToolUse AskUserQuestion hook — if missing, hooks need updating.
 pub fn hooks_installed(path: &Path) -> bool {
     let content = match fs::read_to_string(path) {
         Ok(c) => c,
         Err(_) => return false,
     };
-    content.contains("ccs hook ask")
+    content.contains("cove hook ask")
 }
 
-/// Install CCS hooks into settings.json.
+/// Install Cove hooks into settings.json.
 /// Appends to existing hook arrays — does not overwrite.
 pub fn install_hooks(path: &Path) -> Result<(), String> {
-    install_hooks_with_bin(path, &ccs_bin_path())
+    install_hooks_with_bin(path, &cove_bin_path())
 }
 
 /// Check if a hook array already contains an entry whose command includes `needle`.
@@ -77,7 +77,7 @@ fn install_hooks_with_bin(path: &Path, bin: &str) -> Result<(), String> {
 
     let hooks_obj = hooks.as_object_mut().ok_or("hooks is not an object")?;
 
-    // Each entry: (hook_type, matcher, ccs_command)
+    // Each entry: (hook_type, matcher, cove_command)
     let entries: &[(&str, &str, &str)] = &[
         ("UserPromptSubmit", "*", "hook user-prompt"),
         ("Stop", "*", "hook stop"),
@@ -120,16 +120,16 @@ pub fn run() -> Result<(), String> {
     let path = settings_path();
 
     if hooks_installed(&path) {
-        println!("CCS hooks are already installed in ~/.claude/settings.json");
+        println!("Cove hooks are already installed in ~/.claude/settings.json");
         return Ok(());
     }
 
     install_hooks(&path)?;
-    println!("Installed CCS hooks in ~/.claude/settings.json");
-    println!("  UserPromptSubmit              → ccs hook user-prompt");
-    println!("  Stop                          → ccs hook stop");
-    println!("  PreToolUse(AskUserQuestion)   → ccs hook ask");
-    println!("  PostToolUse(AskUserQuestion)  → ccs hook ask-done");
+    println!("Installed Cove hooks in ~/.claude/settings.json");
+    println!("  UserPromptSubmit              → cove hook user-prompt");
+    println!("  Stop                          → cove hook stop");
+    println!("  PreToolUse(AskUserQuestion)   → cove hook ask");
+    println!("  PostToolUse(AskUserQuestion)  → cove hook ask-done");
 
     Ok(())
 }
@@ -158,10 +158,10 @@ mod tests {
     fn test_hooks_installed_only_old_hooks() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("settings.json");
-        // Old installation — has "ccs hook stop" but not "ccs hook ask"
+        // Old installation — has "cove hook stop" but not "cove hook ask"
         fs::write(
             &path,
-            r#"{"hooks":{"Stop":[{"hooks":[{"command":"ccs hook stop"}]}]}}"#,
+            r#"{"hooks":{"Stop":[{"hooks":[{"command":"cove hook stop"}]}]}}"#,
         )
         .unwrap();
 
@@ -174,7 +174,7 @@ mod tests {
         let path = dir.path().join("settings.json");
         fs::write(
             &path,
-            r#"{"hooks":{"PreToolUse":[{"hooks":[{"command":"ccs hook ask"}]}]}}"#,
+            r#"{"hooks":{"PreToolUse":[{"hooks":[{"command":"cove hook ask"}]}]}}"#,
         )
         .unwrap();
 
@@ -187,13 +187,13 @@ mod tests {
         let path = dir.path().join("settings.json");
         fs::write(&path, "{}").unwrap();
 
-        install_hooks_with_bin(&path, "ccs").unwrap();
+        install_hooks_with_bin(&path, "cove").unwrap();
 
         let content = fs::read_to_string(&path).unwrap();
-        assert!(content.contains("ccs hook user-prompt"));
-        assert!(content.contains("ccs hook stop"));
-        assert!(content.contains("ccs hook ask\""));
-        assert!(content.contains("ccs hook ask-done"));
+        assert!(content.contains("cove hook user-prompt"));
+        assert!(content.contains("cove hook stop"));
+        assert!(content.contains("cove hook ask\""));
+        assert!(content.contains("cove hook ask-done"));
 
         let parsed: Value = serde_json::from_str(&content).unwrap();
         let hooks = parsed["hooks"].as_object().unwrap();
@@ -217,12 +217,12 @@ mod tests {
         )
         .unwrap();
 
-        install_hooks_with_bin(&path, "ccs").unwrap();
+        install_hooks_with_bin(&path, "cove").unwrap();
 
         let content = fs::read_to_string(&path).unwrap();
         let parsed: Value = serde_json::from_str(&content).unwrap();
 
-        // Stop should have 2 entries: original + CCS
+        // Stop should have 2 entries: original + Cove
         let stop = parsed["hooks"]["Stop"].as_array().unwrap();
         assert_eq!(stop.len(), 2);
         assert!(
@@ -235,7 +235,7 @@ mod tests {
             stop[1]["hooks"][0]["command"]
                 .as_str()
                 .unwrap()
-                .contains("ccs hook stop")
+                .contains("cove hook stop")
         );
     }
 
@@ -245,14 +245,14 @@ mod tests {
         let path = dir.path().join("settings.json");
         fs::write(&path, "{}").unwrap();
 
-        install_hooks_with_bin(&path, "ccs").unwrap();
-        install_hooks_with_bin(&path, "ccs").unwrap();
+        install_hooks_with_bin(&path, "cove").unwrap();
+        install_hooks_with_bin(&path, "cove").unwrap();
 
         let content = fs::read_to_string(&path).unwrap();
         let parsed: Value = serde_json::from_str(&content).unwrap();
         let hooks = parsed["hooks"].as_object().unwrap();
 
-        // Each hook type should still have exactly 1 CCS entry
+        // Each hook type should still have exactly 1 Cove entry
         assert_eq!(hooks["UserPromptSubmit"].as_array().unwrap().len(), 1);
         assert_eq!(hooks["Stop"].as_array().unwrap().len(), 1);
         assert_eq!(hooks["PreToolUse"].as_array().unwrap().len(), 1);
@@ -264,11 +264,11 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("subdir").join("settings.json");
 
-        install_hooks_with_bin(&path, "ccs").unwrap();
+        install_hooks_with_bin(&path, "cove").unwrap();
 
         assert!(path.exists());
         let content = fs::read_to_string(&path).unwrap();
-        assert!(content.contains("ccs hook ask"));
+        assert!(content.contains("cove hook ask"));
     }
 
     #[test]
@@ -278,11 +278,11 @@ mod tests {
         // Simulate old installation with only UserPromptSubmit + Stop
         fs::write(
             &path,
-            r#"{"hooks":{"UserPromptSubmit":[{"matcher":"*","hooks":[{"type":"command","command":"ccs hook user-prompt","async":true,"timeout":5}]}],"Stop":[{"matcher":"*","hooks":[{"type":"command","command":"ccs hook stop","async":true,"timeout":5}]}]}}"#,
+            r#"{"hooks":{"UserPromptSubmit":[{"matcher":"*","hooks":[{"type":"command","command":"cove hook user-prompt","async":true,"timeout":5}]}],"Stop":[{"matcher":"*","hooks":[{"type":"command","command":"cove hook stop","async":true,"timeout":5}]}]}}"#,
         )
         .unwrap();
 
-        install_hooks_with_bin(&path, "ccs").unwrap();
+        install_hooks_with_bin(&path, "cove").unwrap();
 
         let content = fs::read_to_string(&path).unwrap();
         let parsed: Value = serde_json::from_str(&content).unwrap();

@@ -4,7 +4,7 @@ use crate::tmux;
 pub fn run() -> Result<(), String> {
     if !tmux::has_session() {
         return Err(format!(
-            "{ANSI_OVERLAY}No active ccs session.{ANSI_RESET} Run {ANSI_PEACH}ccs start{ANSI_RESET} to create one."
+            "{ANSI_OVERLAY}No active cove session.{ANSI_RESET} Run {ANSI_PEACH}cove{ANSI_RESET} to create one."
         ));
     }
 

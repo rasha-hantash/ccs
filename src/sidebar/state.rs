@@ -1,7 +1,7 @@
 // ── State detection for Claude session windows ──
 //
-// Reads CCS event files written by Claude Code hooks to determine sidebar state.
-// Each Claude session has an event file at ~/.ccs/events/{session_id}.jsonl.
+// Reads Cove event files written by Claude Code hooks to determine sidebar state.
+// Each Claude session has an event file at ~/.cove/events/{session_id}.jsonl.
 // The sidebar matches events to tmux windows by comparing the event's `pane_id`
 // (from $TMUX_PANE) to each window's tmux pane ID. This correctly handles
 // multiple sessions in the same working directory.
@@ -47,7 +47,7 @@ struct EventEntry {
 
 fn events_dir() -> PathBuf {
     let home = std::env::var("HOME").unwrap_or_default();
-    PathBuf::from(home).join(".ccs").join("events")
+    PathBuf::from(home).join(".cove").join("events")
 }
 
 /// Read the last line of a file efficiently.

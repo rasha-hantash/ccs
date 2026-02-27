@@ -1,22 +1,21 @@
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
-#[command(name = "ccs", about = "Claude Code session manager", version)]
+#[command(name = "cove", about = "Claude Code session manager", version)]
+#[command(args_conflicts_with_subcommands = true)]
 pub struct Cli {
+    /// Session name (default behavior: start or resume a session)
+    pub name: Option<String>,
+
+    /// Working directory
+    pub dir: Option<String>,
+
     #[command(subcommand)]
-    pub command: Command,
+    pub command: Option<Command>,
 }
 
 #[derive(Subcommand)]
 pub enum Command {
-    /// Start or add a session tab
-    Start {
-        /// Session name
-        #[arg(default_value = "session-1")]
-        name: String,
-        /// Working directory
-        dir: Option<String>,
-    },
     /// List active sessions
     #[command(alias = "ls")]
     List,

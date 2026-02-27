@@ -1,7 +1,7 @@
 // ── Claude Code hook handler ──
 //
-// Called by Claude Code hooks to write CCS state events.
-// Reads JSON from stdin, determines state, appends to ~/.ccs/events/{session_id}.jsonl.
+// Called by Claude Code hooks to write Cove state events.
+// Reads JSON from stdin, determines state, appends to ~/.cove/events/{session_id}.jsonl.
 //
 // Hook → state mapping:
 //   UserPromptSubmit           → working
@@ -29,7 +29,7 @@ struct HookInput {
 
 fn events_dir() -> PathBuf {
     let home = std::env::var("HOME").unwrap_or_default();
-    PathBuf::from(home).join(".ccs").join("events")
+    PathBuf::from(home).join(".cove").join("events")
 }
 
 /// Append a state event to the session's event file.
