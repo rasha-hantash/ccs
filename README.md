@@ -19,7 +19,7 @@ Manage multiple [Claude Code](https://docs.anthropic.com/en/docs/claude-code) se
 ### Homebrew
 
 ```sh
-brew tap rasha-hantash/ccs && brew install ccs
+brew tap rasha-hantash/ccs && brew install ccs-cli
 ```
 
 ### curl (macOS / Linux)
