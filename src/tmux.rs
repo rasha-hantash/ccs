@@ -117,6 +117,11 @@ pub fn new_session(name: &str, dir: &str, sidebar_bin: &str) -> Result<(), Strin
             ".1",
             "-k",
             "claude",
+            ";",
+            "set-hook",
+            "-w",
+            "window-layout-changed",
+            "run-shell 'tmux resize-pane -t #{session_name}:#{window_index}.1 -y $((#{window_height} * 75 / 100))'",
         ])
         .status()
         .map_err(|e| format!("tmux: {e}"))?;
@@ -170,6 +175,13 @@ pub fn setup_layout(name: &str, dir: &str, sidebar_bin: &str) -> Result<(), Stri
             "select-pane",
             "-t",
             &format!("{win}.2"),
+            ";",
+            "set-hook",
+            "-w",
+            "-t",
+            &win,
+            "window-layout-changed",
+            &format!("run-shell 'tmux resize-pane -t {win}.1 -y $(( #{{window_height}} * 75 / 100 ))'"),
         ])
         .status()
         .map_err(|e| format!("tmux: {e}"))?;
