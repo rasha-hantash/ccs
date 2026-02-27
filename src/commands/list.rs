@@ -14,12 +14,12 @@ pub fn run() -> Result<(), String> {
         let dir = w.pane_path.replace(&home, "~");
         if w.is_active {
             println!(
-                "{ANSI_WHITE}{ANSI_BOLD}❯{ANSI_RESET} {ANSI_WHITE}{ANSI_BOLD}{}{ANSI_RESET}  {ANSI_SUBTEXT}{dir}{ANSI_RESET}",
+                "  {ANSI_WHITE}{ANSI_BOLD}❯{ANSI_RESET} {ANSI_WHITE}{ANSI_BOLD}{}{ANSI_RESET}  {ANSI_SUBTEXT}{dir}{ANSI_RESET}",
                 w.name
             );
         } else {
             println!(
-                "  {ANSI_OVERLAY}{}{ANSI_RESET}  {ANSI_SURFACE}{dir}{ANSI_RESET}",
+                "    {ANSI_OVERLAY}{}{ANSI_RESET}  {ANSI_SURFACE}{dir}{ANSI_RESET}",
                 w.name
             );
         }
