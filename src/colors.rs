@@ -13,5 +13,6 @@ pub const ANSI_PEACH: &str = "\x1b[38;2;250;179;135m";
 pub const ANSI_OVERLAY: &str = "\x1b[38;2;108;112;134m";
 pub const ANSI_SURFACE: &str = "\x1b[38;2;69;71;90m";
 pub const ANSI_SUBTEXT: &str = "\x1b[38;2;166;173;200m";
+pub const ANSI_WHITE: &str = "\x1b[38;2;205;214;244m";
 pub const ANSI_BOLD: &str = "\x1b[1m";
 pub const ANSI_RESET: &str = "\x1b[0m";
