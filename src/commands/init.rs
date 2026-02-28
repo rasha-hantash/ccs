@@ -25,14 +25,18 @@ fn cove_bin_path() -> String {
     format!("{home}/.local/bin/cove")
 }
 
-/// Check if Cove hooks are already installed in settings.json.
-/// Checks for the PreToolUse AskUserQuestion hook — if missing, hooks need updating.
+/// Check if Cove hooks are already installed in settings.json with the correct binary path.
+/// Returns false if hooks are missing OR if the binary path is stale.
 pub fn hooks_installed(path: &Path) -> bool {
     let content = match fs::read_to_string(path) {
         Ok(c) => c,
         Err(_) => return false,
     };
-    content.contains("cove hook ask")
+    // Must have the ask hook (detects old installs missing PreToolUse)
+    // AND point to the current binary (detects stale paths after rename/move)
+    let bin = cove_bin_path();
+    let ask_cmd = format!("{bin} hook ask");
+    content.contains(&ask_cmd)
 }
 
 /// Install Cove hooks into settings.json.
@@ -56,6 +60,37 @@ fn has_hook_command(arr: &[Value], needle: &str) -> bool {
             })
             .unwrap_or(false)
     })
+}
+
+/// Remove any hook entries whose command contains `needle` from an array.
+/// Returns the number of entries removed.
+fn remove_hook_commands(arr: &mut Vec<Value>, needle: &str) -> usize {
+    let before = arr.len();
+    arr.retain(|entry| {
+        let is_cove = entry["hooks"]
+            .as_array()
+            .map(|hooks| {
+                hooks.iter().any(|h| {
+                    h["command"]
+                        .as_str()
+                        .map(|c| c.contains(needle))
+                        .unwrap_or(false)
+                })
+            })
+            .unwrap_or(false);
+        !is_cove
+    });
+    before - arr.len()
+}
+
+/// Check if settings.json has cove hooks pointing to a different binary path.
+pub fn has_stale_hooks(path: &Path, current_bin: &str) -> bool {
+    let content = match fs::read_to_string(path) {
+        Ok(c) => c,
+        Err(_) => return false,
+    };
+    // Has some cove hook commands but NOT with the current binary path
+    content.contains(" hook user-prompt") && !content.contains(current_bin)
 }
 
 fn install_hooks_with_bin(path: &Path, bin: &str) -> Result<(), String> {
@@ -93,6 +128,9 @@ fn install_hooks_with_bin(path: &Path, bin: &str) -> Result<(), String> {
             .as_array_mut()
             .ok_or(format!("{hook_type} is not an array"))?;
 
+        // Remove stale cove hooks (different binary path) before adding new ones
+        remove_hook_commands(arr, "cove hook");
+
         let full_cmd = format!("{bin} {cmd}");
         if !has_hook_command(arr, &full_cmd) {
             arr.push(serde_json::json!({
@@ -124,8 +162,17 @@ pub fn run() -> Result<(), String> {
         return Ok(());
     }
 
+    let bin = cove_bin_path();
+    let stale = has_stale_hooks(&path, &bin);
+
     install_hooks(&path)?;
-    println!("Installed Cove hooks in ~/.claude/settings.json");
+
+    if stale {
+        println!("Updated Cove hooks in ~/.claude/settings.json");
+        println!("  (old binary path was replaced with {bin})");
+    } else {
+        println!("Installed Cove hooks in ~/.claude/settings.json");
+    }
     println!("  UserPromptSubmit              → cove hook user-prompt");
     println!("  Stop                          → cove hook stop");
     println!("  PreToolUse(AskUserQuestion)   → cove hook ask");
@@ -172,12 +219,10 @@ mod tests {
     fn test_hooks_installed_present() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("settings.json");
-        fs::write(
-            &path,
-            r#"{"hooks":{"PreToolUse":[{"hooks":[{"command":"cove hook ask"}]}]}}"#,
-        )
-        .unwrap();
+        fs::write(&path, "{}").unwrap();
 
+        // Install hooks with the actual binary path, then verify detection
+        install_hooks(&path).unwrap();
         assert!(hooks_installed(&path));
     }
 
@@ -294,5 +339,53 @@ mod tests {
         // New hooks should be added
         assert_eq!(hooks["PreToolUse"].as_array().unwrap().len(), 1);
         assert_eq!(hooks["PostToolUse"].as_array().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn test_install_hooks_replaces_stale_binary_path() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("settings.json");
+        // Hooks with old binary path + a non-cove hook that should be preserved
+        fs::write(
+            &path,
+            r#"{"hooks":{"Stop":[{"matcher":"*","hooks":[{"type":"command","command":"afplay sound.aiff"}]},{"matcher":"*","hooks":[{"type":"command","command":"/old/path/cove hook stop","async":true,"timeout":5}]}],"UserPromptSubmit":[{"matcher":"*","hooks":[{"type":"command","command":"/old/path/cove hook user-prompt","async":true,"timeout":5}]}]}}"#,
+        )
+        .unwrap();
+
+        assert!(has_stale_hooks(&path, "/new/path/cove"));
+
+        install_hooks_with_bin(&path, "/new/path/cove").unwrap();
+
+        let content = fs::read_to_string(&path).unwrap();
+        let parsed: Value = serde_json::from_str(&content).unwrap();
+        let hooks = parsed["hooks"].as_object().unwrap();
+
+        // Stop should have 2 entries: preserved afplay + new cove
+        let stop = hooks["Stop"].as_array().unwrap();
+        assert_eq!(stop.len(), 2);
+        assert!(stop[0]["hooks"][0]["command"].as_str().unwrap().contains("afplay"));
+        assert!(stop[1]["hooks"][0]["command"].as_str().unwrap().contains("/new/path/cove hook stop"));
+
+        // Old path should be gone
+        assert!(!content.contains("/old/path/cove"));
+
+        // UserPromptSubmit should have exactly 1 (replaced)
+        assert_eq!(hooks["UserPromptSubmit"].as_array().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn test_hooks_installed_stale_path() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("settings.json");
+        // Has cove hooks but with a different binary path
+        fs::write(
+            &path,
+            r#"{"hooks":{"UserPromptSubmit":[{"hooks":[{"command":"/old/path/cove hook user-prompt"}]}],"PreToolUse":[{"hooks":[{"command":"/old/path/cove hook ask"}]}]}}"#,
+        )
+        .unwrap();
+
+        // hooks_installed should return false because binary path doesn't match
+        assert!(!hooks_installed(&path));
+        assert!(has_stale_hooks(&path, &cove_bin_path()));
     }
 }

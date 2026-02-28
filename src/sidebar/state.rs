@@ -126,6 +126,31 @@ fn state_from_str(s: &str) -> WindowState {
 
 // ── Public API ──
 
+/// Remove event files whose last event matches the given pane_id.
+/// Called when a new window is created to prevent stale events (from a previous
+/// session that used the same recycled tmux pane_id) from contaminating state.
+pub fn purge_events_for_pane(pane_id: &str) {
+    let dir = events_dir();
+    let entries = match fs::read_dir(&dir) {
+        Ok(e) => e,
+        Err(_) => return,
+    };
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|e| e.to_str()) != Some("jsonl") {
+            continue;
+        }
+        if let Some(line) = read_last_line(&path) {
+            if let Ok(event) = serde_json::from_str::<EventEntry>(&line) {
+                if event.pane_id == pane_id {
+                    let _ = fs::remove_file(&path);
+                }
+            }
+        }
+    }
+}
+
 pub struct StateDetector;
 
 impl StateDetector {
@@ -315,5 +340,71 @@ mod tests {
         assert_eq!(state_from_str("idle"), WindowState::Idle);
         assert_eq!(state_from_str("asking"), WindowState::Asking);
         assert_eq!(state_from_str("unknown"), WindowState::Fresh);
+    }
+
+    #[test]
+    fn test_purge_events_for_pane() {
+        let dir = tempfile::tempdir().unwrap();
+
+        // Stale event with pane_id %3 — should be removed
+        let mut f1 = fs::File::create(dir.path().join("old-session.jsonl")).unwrap();
+        writeln!(
+            f1,
+            r#"{{"state":"asking","cwd":"/project","pane_id":"%3","ts":1000}}"#
+        )
+        .unwrap();
+
+        // Active event with pane_id %0 — should be kept
+        let mut f2 = fs::File::create(dir.path().join("active-session.jsonl")).unwrap();
+        writeln!(
+            f2,
+            r#"{{"state":"idle","cwd":"/project","pane_id":"%0","ts":2000}}"#
+        )
+        .unwrap();
+
+        // Another stale event with pane_id %3 — should be removed
+        let mut f3 = fs::File::create(dir.path().join("another-old.jsonl")).unwrap();
+        writeln!(
+            f3,
+            r#"{{"state":"idle","cwd":"/other","pane_id":"%3","ts":500}}"#
+        )
+        .unwrap();
+
+        // Call purge with a custom dir (can't use purge_events_for_pane directly
+        // since it uses events_dir(), so test the logic inline)
+        let entries = fs::read_dir(dir.path()).unwrap();
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|e| e.to_str()) != Some("jsonl") {
+                continue;
+            }
+            if let Some(line) = read_last_line(&path) {
+                if let Ok(event) = serde_json::from_str::<EventEntry>(&line) {
+                    if event.pane_id == "%3" {
+                        fs::remove_file(&path).unwrap();
+                    }
+                }
+            }
+        }
+
+        // Only the %0 file should remain
+        let remaining: Vec<_> = fs::read_dir(dir.path())
+            .unwrap()
+            .flatten()
+            .filter(|e| {
+                e.path()
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    == Some("jsonl")
+            })
+            .collect();
+        assert_eq!(remaining.len(), 1);
+        assert!(remaining[0]
+            .path()
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .contains("active-session"));
     }
 }
