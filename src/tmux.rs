@@ -77,6 +77,7 @@ pub fn new_session(name: &str, dir: &str, sidebar_bin: &str) -> Result<(), Strin
     let status = Command::new("tmux")
         .args([
             "new-session",
+            "-d",
             "-s",
             SESSION,
             "-n",
@@ -183,7 +184,9 @@ pub fn setup_layout(name: &str, dir: &str, sidebar_bin: &str) -> Result<(), Stri
             "-t",
             &win,
             "window-layout-changed",
-            &format!("run-shell 'tmux resize-pane -t {win}.1 -x $(( #{{window_width}} * 70 / 100 ))'"),
+            &format!(
+                "run-shell 'tmux resize-pane -t {win}.1 -x $(( #{{window_width}} * 70 / 100 ))'"
+            ),
         ])
         .status()
         .map_err(|e| format!("tmux: {e}"))?;

@@ -64,7 +64,11 @@ fn has_working_event(session_id: &str) -> bool {
 fn has_working_event_in(session_id: &str, dir: &Path) -> bool {
     let path = dir.join(format!("{session_id}.jsonl"));
     fs::read_to_string(path)
-        .map(|content| content.lines().any(|line| line.contains(r#""state":"working""#)))
+        .map(|content| {
+            content
+                .lines()
+                .any(|line| line.contains(r#""state":"working""#))
+        })
         .unwrap_or(false)
 }
 

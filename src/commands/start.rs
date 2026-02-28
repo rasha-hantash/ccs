@@ -116,10 +116,13 @@ pub fn run(name: &str, dir: Option<&str>) -> Result<(), String> {
 
         tmux::new_session(name, &dir, &sidebar_cmd)?;
 
-        // Purge stale event files that match this pane's recycled ID
+        // Purge stale event files that match this pane's recycled ID.
+        // new_session creates detached (-d), so this runs before the user sees anything.
         if let Ok(pane_id) = tmux::get_claude_pane_id(name) {
             state::purge_events_for_pane(&pane_id);
         }
+
+        tmux::attach()?;
     }
 
     Ok(())

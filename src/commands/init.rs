@@ -363,8 +363,18 @@ mod tests {
         // Stop should have 2 entries: preserved afplay + new cove
         let stop = hooks["Stop"].as_array().unwrap();
         assert_eq!(stop.len(), 2);
-        assert!(stop[0]["hooks"][0]["command"].as_str().unwrap().contains("afplay"));
-        assert!(stop[1]["hooks"][0]["command"].as_str().unwrap().contains("/new/path/cove hook stop"));
+        assert!(
+            stop[0]["hooks"][0]["command"]
+                .as_str()
+                .unwrap()
+                .contains("afplay")
+        );
+        assert!(
+            stop[1]["hooks"][0]["command"]
+                .as_str()
+                .unwrap()
+                .contains("/new/path/cove hook stop")
+        );
 
         // Old path should be gone
         assert!(!content.contains("/old/path/cove"));
