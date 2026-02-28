@@ -77,6 +77,7 @@ pub fn new_session(name: &str, dir: &str, sidebar_bin: &str) -> Result<(), Strin
     let status = Command::new("tmux")
         .args([
             "new-session",
+            "-d",
             "-s",
             SESSION,
             "-n",
@@ -183,7 +184,9 @@ pub fn setup_layout(name: &str, dir: &str, sidebar_bin: &str) -> Result<(), Stri
             "-t",
             &win,
             "window-layout-changed",
-            &format!("run-shell 'tmux resize-pane -t {win}.1 -x $(( #{{window_width}} * 70 / 100 ))'"),
+            &format!(
+                "run-shell 'tmux resize-pane -t {win}.1 -x $(( #{{window_width}} * 70 / 100 ))'"
+            ),
         ])
         .status()
         .map_err(|e| format!("tmux: {e}"))?;
@@ -288,6 +291,13 @@ pub fn list_pane_commands() -> Result<Vec<PaneInfo>, String> {
     Ok(panes)
 }
 
+/// Get the pane_id (e.g. "%5") of pane .1 (the Claude pane) in a specific window.
+pub fn get_claude_pane_id(window_name: &str) -> Result<String, String> {
+    let target = format!("{SESSION}:{window_name}.1");
+    let out = tmux_stdout(&["display-message", "-t", &target, "-p", "#{pane_id}"])?;
+    Ok(out.trim().to_string())
+}
+
 pub fn select_window_sidebar(index: u32) -> Result<(), String> {
     let target = format!("{SESSION}:{index}");
     let status = Command::new("tmux")
@@ -298,7 +308,7 @@ pub fn select_window_sidebar(index: u32) -> Result<(), String> {
             ";",
             "select-pane",
             "-t",
-            ":.3",
+            ":.2",
         ])
         .status()
         .map_err(|e| format!("tmux: {e}"))?;

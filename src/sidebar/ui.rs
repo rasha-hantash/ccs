@@ -156,7 +156,7 @@ fn status_text(state: WindowState) -> &'static str {
     match state {
         WindowState::Working => "",
         WindowState::Asking => "waiting\u{2026}",
-        WindowState::Idle => "",
+        WindowState::Idle => "your turn",
         WindowState::Done => "",
         WindowState::Fresh => "",
     }
@@ -168,6 +168,7 @@ fn status_span(state: WindowState, tick: u64) -> Span<'static> {
             let frame = SPINNER[tick as usize % SPINNER.len()];
             Span::styled(format!(" {frame}"), Style::default().fg(colors::LAVENDER))
         }
+        WindowState::Idle => Span::styled(status_text(state), Style::default().fg(colors::GREEN)),
         _ => Span::styled(
             status_text(state),
             Style::default()

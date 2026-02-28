@@ -11,7 +11,7 @@
 
 use std::fs::{self, OpenOptions};
 use std::io::{self, Read, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 
@@ -55,6 +55,23 @@ fn write_event(session_id: &str, cwd: &str, pane_id: &str, state: &str) -> Resul
     Ok(())
 }
 
+/// Check if the session's event file contains at least one "working" entry,
+/// proving the user has submitted a prompt in this session.
+fn has_working_event(session_id: &str) -> bool {
+    has_working_event_in(session_id, &events_dir())
+}
+
+fn has_working_event_in(session_id: &str, dir: &Path) -> bool {
+    let path = dir.join(format!("{session_id}.jsonl"));
+    fs::read_to_string(path)
+        .map(|content| {
+            content
+                .lines()
+                .any(|line| line.contains(r#""state":"working""#))
+        })
+        .unwrap_or(false)
+}
+
 // ── Public API ──
 
 pub fn run(event: HookEvent) -> Result<(), String> {
@@ -71,6 +88,12 @@ pub fn run(event: HookEvent) -> Result<(), String> {
         HookEvent::Stop => "idle",
         HookEvent::Ask => "asking",
     };
+
+    // Suppress the initial "idle" on session startup — only write it after
+    // the user has submitted at least one prompt (i.e. a "working" event exists).
+    if state == "idle" && !has_working_event(&hook.session_id) {
+        return Ok(());
+    }
 
     // $TMUX_PANE uniquely identifies which tmux pane Claude is running in.
     // This lets the sidebar distinguish sessions even when they share a cwd.
@@ -104,5 +127,27 @@ mod tests {
         let content = fs::read_to_string(&path).unwrap();
         assert!(content.contains(r#""state":"working""#));
         assert!(content.contains(r#""cwd":"/tmp""#));
+    }
+
+    #[test]
+    fn test_has_working_event_empty() {
+        let dir = tempfile::tempdir().unwrap();
+        assert!(!has_working_event_in("no-such-session", dir.path()));
+    }
+
+    #[test]
+    fn test_has_working_event_with_working() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("test-session.jsonl");
+
+        fs::write(
+            &path,
+            r#"{"state":"working","cwd":"/tmp","pane_id":"%1","ts":1000}
+{"state":"idle","cwd":"/tmp","pane_id":"%1","ts":1001}
+"#,
+        )
+        .unwrap();
+
+        assert!(has_working_event_in("test-session", dir.path()));
     }
 }
