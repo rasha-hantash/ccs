@@ -35,7 +35,7 @@ const LEGEND: &[LegendEntry] = &[
     },
     LegendEntry {
         key: "\u{2318} + ;",
-        label: "exit",
+        label: "detach",
     },
 ];
 
