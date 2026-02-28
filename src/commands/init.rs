@@ -32,11 +32,11 @@ pub fn hooks_installed(path: &Path) -> bool {
         Ok(c) => c,
         Err(_) => return false,
     };
-    // Must have the ask hook (detects old installs missing PreToolUse)
+    // Must have the ask hook AND ExitPlanMode (detects old installs missing newer hooks)
     // AND point to the current binary (detects stale paths after rename/move)
     let bin = cove_bin_path();
     let ask_cmd = format!("{bin} hook ask");
-    content.contains(&ask_cmd)
+    content.contains(&ask_cmd) && content.contains("ExitPlanMode")
 }
 
 /// Install Cove hooks into settings.json.
@@ -45,10 +45,14 @@ pub fn install_hooks(path: &Path) -> Result<(), String> {
     install_hooks_with_bin(path, &cove_bin_path())
 }
 
-/// Check if a hook array already contains an entry whose command includes `needle`.
-fn has_hook_command(arr: &[Value], needle: &str) -> bool {
+/// Check if a hook array already contains an entry with the given matcher whose command includes `needle`.
+fn has_hook_entry(arr: &[Value], matcher: &str, needle: &str) -> bool {
     arr.iter().any(|entry| {
-        entry["hooks"]
+        let matcher_matches = entry["matcher"]
+            .as_str()
+            .map(|m| m == matcher)
+            .unwrap_or(false);
+        let cmd_matches = entry["hooks"]
             .as_array()
             .map(|hooks| {
                 hooks.iter().any(|h| {
@@ -58,7 +62,8 @@ fn has_hook_command(arr: &[Value], needle: &str) -> bool {
                         .unwrap_or(false)
                 })
             })
-            .unwrap_or(false)
+            .unwrap_or(false);
+        matcher_matches && cmd_matches
     })
 }
 
@@ -118,7 +123,15 @@ fn install_hooks_with_bin(path: &Path, bin: &str) -> Result<(), String> {
         ("Stop", "*", "hook stop"),
         ("PreToolUse", "AskUserQuestion", "hook ask"),
         ("PostToolUse", "AskUserQuestion", "hook ask-done"),
+        ("PreToolUse", "ExitPlanMode", "hook ask"),
+        ("PostToolUse", "ExitPlanMode", "hook ask-done"),
+        ("PreToolUse", "EnterPlanMode", "hook ask"),
+        ("PostToolUse", "EnterPlanMode", "hook ask-done"),
     ];
+
+    // Remove stale cove hooks once per hook_type before adding new ones.
+    // (Doing it per-entry would remove hooks added by earlier entries of the same type.)
+    let mut cleaned_types: Vec<&str> = Vec::new();
 
     for &(hook_type, matcher, cmd) in entries {
         let arr = hooks_obj
@@ -128,11 +141,13 @@ fn install_hooks_with_bin(path: &Path, bin: &str) -> Result<(), String> {
             .as_array_mut()
             .ok_or(format!("{hook_type} is not an array"))?;
 
-        // Remove stale cove hooks (different binary path) before adding new ones
-        remove_hook_commands(arr, "cove hook");
+        if !cleaned_types.contains(&hook_type) {
+            cleaned_types.push(hook_type);
+            remove_hook_commands(arr, "cove hook");
+        }
 
         let full_cmd = format!("{bin} {cmd}");
-        if !has_hook_command(arr, &full_cmd) {
+        if !has_hook_entry(arr, matcher, &full_cmd) {
             arr.push(serde_json::json!({
                 "matcher": matcher,
                 "hooks": [{
@@ -177,6 +192,10 @@ pub fn run() -> Result<(), String> {
     println!("  Stop                          → cove hook stop");
     println!("  PreToolUse(AskUserQuestion)   → cove hook ask");
     println!("  PostToolUse(AskUserQuestion)  → cove hook ask-done");
+    println!("  PreToolUse(ExitPlanMode)      → cove hook ask");
+    println!("  PostToolUse(ExitPlanMode)     → cove hook ask-done");
+    println!("  PreToolUse(EnterPlanMode)     → cove hook ask");
+    println!("  PostToolUse(EnterPlanMode)    → cove hook ask-done");
 
     Ok(())
 }
@@ -244,12 +263,14 @@ mod tests {
         let hooks = parsed["hooks"].as_object().unwrap();
         assert_eq!(hooks["UserPromptSubmit"].as_array().unwrap().len(), 1);
         assert_eq!(hooks["Stop"].as_array().unwrap().len(), 1);
-        assert_eq!(hooks["PreToolUse"].as_array().unwrap().len(), 1);
-        assert_eq!(hooks["PostToolUse"].as_array().unwrap().len(), 1);
+        assert_eq!(hooks["PreToolUse"].as_array().unwrap().len(), 3);
+        assert_eq!(hooks["PostToolUse"].as_array().unwrap().len(), 3);
 
-        // PreToolUse should use AskUserQuestion matcher
-        let pre = &hooks["PreToolUse"].as_array().unwrap()[0];
-        assert_eq!(pre["matcher"].as_str().unwrap(), "AskUserQuestion");
+        // PreToolUse should have AskUserQuestion, ExitPlanMode, EnterPlanMode matchers
+        let pre = hooks["PreToolUse"].as_array().unwrap();
+        assert_eq!(pre[0]["matcher"].as_str().unwrap(), "AskUserQuestion");
+        assert_eq!(pre[1]["matcher"].as_str().unwrap(), "ExitPlanMode");
+        assert_eq!(pre[2]["matcher"].as_str().unwrap(), "EnterPlanMode");
     }
 
     #[test]
@@ -297,11 +318,11 @@ mod tests {
         let parsed: Value = serde_json::from_str(&content).unwrap();
         let hooks = parsed["hooks"].as_object().unwrap();
 
-        // Each hook type should still have exactly 1 Cove entry
+        // Each hook type should still have the correct number of Cove entries
         assert_eq!(hooks["UserPromptSubmit"].as_array().unwrap().len(), 1);
         assert_eq!(hooks["Stop"].as_array().unwrap().len(), 1);
-        assert_eq!(hooks["PreToolUse"].as_array().unwrap().len(), 1);
-        assert_eq!(hooks["PostToolUse"].as_array().unwrap().len(), 1);
+        assert_eq!(hooks["PreToolUse"].as_array().unwrap().len(), 3);
+        assert_eq!(hooks["PostToolUse"].as_array().unwrap().len(), 3);
     }
 
     #[test]
@@ -336,9 +357,9 @@ mod tests {
         // Old hooks should not be duplicated
         assert_eq!(hooks["UserPromptSubmit"].as_array().unwrap().len(), 1);
         assert_eq!(hooks["Stop"].as_array().unwrap().len(), 1);
-        // New hooks should be added
-        assert_eq!(hooks["PreToolUse"].as_array().unwrap().len(), 1);
-        assert_eq!(hooks["PostToolUse"].as_array().unwrap().len(), 1);
+        // New hooks should be added (3 each: AskUserQuestion + ExitPlanMode + EnterPlanMode)
+        assert_eq!(hooks["PreToolUse"].as_array().unwrap().len(), 3);
+        assert_eq!(hooks["PostToolUse"].as_array().unwrap().len(), 3);
     }
 
     #[test]
