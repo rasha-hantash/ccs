@@ -135,8 +135,20 @@ pub fn new_session(name: &str, dir: &str, sidebar_bin: &str) -> Result<(), Strin
 }
 
 pub fn new_window(name: &str, dir: &str) -> Result<(), String> {
+    // Explicitly pick the next unused index to avoid "index N in use" errors
+    // caused by zombie windows kept alive by remain-on-exit.
+    let max_idx = list_windows()?
+        .iter()
+        .map(|w| w.index)
+        .max()
+        .unwrap_or(0);
+    let next_idx = (max_idx + 1).to_string();
+
+    let target = format!("{SESSION}:{next_idx}");
     let status = Command::new("tmux")
-        .args(["new-window", "-t", SESSION, "-n", name, "-c", dir, "claude"])
+        .args([
+            "new-window", "-t", &target, "-n", name, "-c", dir, "claude",
+        ])
         .status()
         .map_err(|e| format!("tmux: {e}"))?;
 
@@ -156,6 +168,13 @@ pub fn setup_layout(name: &str, dir: &str, sidebar_bin: &str) -> Result<(), Stri
             &win,
             "remain-on-exit",
             "on",
+            ";",
+            "set-hook",
+            "-w",
+            "-t",
+            &win,
+            "pane-died",
+            "respawn-pane",
             ";",
             "split-window",
             "-t",
